@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<thing:thing-descriptions bindingId="alarmpanel"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:thing="https://openhab.org/schemas/thing-description/v1.0.0"
+    xsi:schemaLocation="https://openhab.org/schemas/thing-description/v1.0.0 https://openhab.org/schemas/thing-description-1.0.0.xsd">
+
+    <thing-type id="output">
+        <supported-bridge-type-refs>
+            <bridge-type-ref id="panel"/>
+        </supported-bridge-type-refs>
+        <label>Alarm Output</label>
+        <description>A driver that asserts on the target item when the panel is TRIGGERED.</description>
+        <channels>
+            <channel id="active" typeId="output-active"/>
+            <channel id="test" typeId="output-test"/>
+            <channel id="lastError" typeId="output-last-error"/>
+        </channels>
+        <config-description-ref uri="thing-type:alarmpanel:output"/>
+    </thing-type>
+
+</thing:thing-descriptions>

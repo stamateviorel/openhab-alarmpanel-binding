@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config-description:config-descriptions
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:config-description="https://openhab.org/schemas/config-description/v1.0.0"
+    xsi:schemaLocation="https://openhab.org/schemas/config-description/v1.0.0
+        https://openhab.org/schemas/config-description-1.0.0.xsd">
+    <config-description uri="thing-type:alarmpanel:output">
+        <parameter name="driver" type="text" required="true">
+            <label>Driver</label>
+            <description>Which driver invokes the target.</description>
+            <default>switchPulse</default>
+            <options>
+                <option value="switchPulse">Switch Pulse - drive a Switch item ON during TRIGGERED</option>
+                <option value="mp3">MP3 Audio - play an audio file via an openHAB audio sink</option>
+                <option value="strobe">Strobe - toggle a Switch on a pattern</option>
+            </options>
+        </parameter>
+        <parameter name="targetItem" type="text">
+            <label>Target Item</label>
+            <description>The Switch item the driver writes (switchPulse and strobe).</description>
+            <context>item</context>
+            <filter>
+                <criteria name="type">Switch</criteria>
+            </filter>
+        </parameter>
+        <parameter name="claimDuringTriggered" type="boolean">
+            <label>Claim During Triggered</label>
+            <description>Re-assert the target state every reassertEverySeconds while TRIGGERED, fighting other rules.</description>
+            <default>true</default>
+        </parameter>
+        <parameter name="reassertEverySeconds" type="integer" min="1" max="300">
+            <label>Reassert Every (s)</label>
+            <description>Used when claim is true.</description>
+            <default>5</default>
+        </parameter>
+        <parameter name="testDurationSeconds" type="integer" min="1" max="60">
+            <label>Test Duration (s)</label>
+            <description>How long the TEST channel runs the driver.</description>
+            <default>5</default>
+        </parameter>
+        <parameter name="audioSink" type="text">
+            <label>Audio Sink</label>
+            <description>openHAB audio sink UID (mp3 driver only).</description>
+        </parameter>
+        <parameter name="audioUrl" type="text">
+            <label>Audio URL/File</label>
+            <description>Audio file (relative to sounds/ folder) or URL (mp3 driver only).</description>
+        </parameter>
+        <parameter name="audioVolume" type="integer" min="0" max="100">
+            <label>Audio Volume</label>
+            <description>Volume 0-100 (mp3 driver only).</description>
+            <default>100</default>
+        </parameter>
+        <parameter name="strobePatternMs" type="text">
+            <label>Strobe Pattern</label>
+            <description>Comma-separated on,off milliseconds (strobe driver only). e.g. 500,500</description>
+            <default>500,500</default>
+        </parameter>
+    </config-description>
+</config-description:config-descriptions>

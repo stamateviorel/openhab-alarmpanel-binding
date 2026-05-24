@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<thing:thing-descriptions bindingId="alarmpanel"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:thing="https://openhab.org/schemas/thing-description/v1.0.0"
+    xsi:schemaLocation="https://openhab.org/schemas/thing-description/v1.0.0 https://openhab.org/schemas/thing-description-1.0.0.xsd">
+
+    <!-- Panel channels -->
+    <channel-type id="panel-state">
+        <item-type>String</item-type>
+        <label>State</label>
+        <description>Current panel state.</description>
+        <state readOnly="true">
+            <options>
+                <option value="DISARMED">Disarmed</option>
+                <option value="EXIT_DELAY">Exit Delay</option>
+                <option value="ARMED_HOME">Armed Home</option>
+                <option value="ARMED_AWAY">Armed Away</option>
+                <option value="ENTRY_DELAY">Entry Delay</option>
+                <option value="TRIGGERED">Triggered</option>
+                <option value="UNKNOWN">Unknown</option>
+            </options>
+        </state>
+    </channel-type>
+
+    <channel-type id="panel-command">
+        <item-type>String</item-type>
+        <label>Command</label>
+        <description>Send ARM_HOME, ARM_AWAY, DISARM, TEST, or SILENCE.</description>
+        <command>
+            <options>
+                <option value="ARM_HOME">Arm Home</option>
+                <option value="ARM_AWAY">Arm Away</option>
+                <option value="DISARM">Disarm</option>
+                <option value="TEST">Test</option>
+                <option value="SILENCE">Silence</option>
+            </options>
+        </command>
+    </channel-type>
+
+    <channel-type id="panel-pin-entry">
+        <item-type>String</item-type>
+        <label>PIN Entry</label>
+        <description>Send the PIN as a command. The binding verifies and clears.</description>
+    </channel-type>
+
+    <channel-type id="panel-countdown">
+        <item-type>Number</item-type>
+        <label>Countdown</label>
+        <description>Seconds remaining in active exit/entry/recovery period.</description>
+        <state readOnly="true" pattern="%d s"/>
+    </channel-type>
+
+    <channel-type id="panel-last-disarm-source">
+        <item-type>String</item-type>
+        <label>Last Disarm Source</label>
+        <description>Human-readable description of the last disarm event source.</description>
+        <state readOnly="true"/>
+    </channel-type>
+
+    <channel-type id="panel-last-disarm-time">
+        <item-type>DateTime</item-type>
+        <label>Last Disarm Time</label>
+        <description>Timestamp of the last disarm.</description>
+        <state readOnly="true"/>
+    </channel-type>
+
+    <channel-type id="panel-armed-at">
+        <item-type>DateTime</item-type>
+        <label>Armed At</label>
+        <description>Timestamp of the last successful arm.</description>
+        <state readOnly="true"/>
+    </channel-type>
+
+    <channel-type id="panel-triggered-at">
+        <item-type>DateTime</item-type>
+        <label>Triggered At</label>
+        <description>Timestamp of the last trigger.</description>
+        <state readOnly="true"/>
+    </channel-type>
+
+    <channel-type id="panel-failed-attempts">
+        <item-type>Number</item-type>
+        <label>Failed PIN Attempts</label>
+        <description>Failed PIN attempts since last success or lockout reset.</description>
+        <state readOnly="true"/>
+    </channel-type>
+
+    <channel-type id="panel-audit">
+        <kind>trigger</kind>
+        <label>Audit Event</label>
+        <description>Trigger channel firing on every state transition with a JSON payload.</description>
+    </channel-type>
+
+    <!-- Zone channels -->
+    <channel-type id="zone-state">
+        <item-type>String</item-type>
+        <label>Zone State</label>
+        <description>IDLE / VIOLATED / SUPPRESSED / DISABLED</description>
+        <state readOnly="true"/>
+    </channel-type>
+
+    <channel-type id="zone-last-violation">
+        <item-type>DateTime</item-type>
+        <label>Last Violation</label>
+        <state readOnly="true"/>
+    </channel-type>
+
+    <channel-type id="zone-last-violation-input">
+        <item-type>String</item-type>
+        <label>Last Violation Input</label>
+        <description>The input item that last triggered this zone.</description>
+        <state readOnly="true"/>
+    </channel-type>
+
+    <channel-type id="zone-enable">
+        <item-type>Switch</item-type>
+        <label>Enabled</label>
+        <description>Master enable for this zone (persists across restart).</description>
+    </channel-type>
+
+    <!-- Output channels -->
+    <channel-type id="output-active">
+        <item-type>Switch</item-type>
+        <label>Active</label>
+        <description>Whether the output is currently asserting.</description>
+        <state readOnly="true"/>
+    </channel-type>
+
+    <channel-type id="output-test">
+        <item-type>Switch</item-type>
+        <label>Test</label>
+        <description>Momentary - fires the output for testDurationSeconds.</description>
+    </channel-type>
+
+    <channel-type id="output-last-error">
+        <item-type>String</item-type>
+        <label>Last Error</label>
+        <description>Last driver failure reason.</description>
+        <state readOnly="true"/>
+    </channel-type>
+
+</thing:thing-descriptions>

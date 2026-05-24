@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config-description:config-descriptions
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:config-description="https://openhab.org/schemas/config-description/v1.0.0"
+    xsi:schemaLocation="https://openhab.org/schemas/config-description/v1.0.0
+        https://openhab.org/schemas/config-description-1.0.0.xsd">
+    <config-description uri="thing-type:alarmpanel:panel">
+        <parameter name="entryDelaySeconds" type="integer" min="0" max="300">
+            <label>Entry Delay (s)</label>
+            <description>Seconds between zone violation and TRIGGERED in armed mode.</description>
+            <default>10</default>
+        </parameter>
+        <parameter name="exitDelaySeconds" type="integer" min="0" max="300">
+            <label>Exit Delay (s)</label>
+            <description>Seconds after ARM command before zones become live.</description>
+            <default>20</default>
+        </parameter>
+        <parameter name="triggerDurationSeconds" type="integer" min="30" max="3600">
+            <label>Trigger Duration (s)</label>
+            <description>Auto-stop the siren after this many seconds (safety cap).</description>
+            <default>600</default>
+        </parameter>
+        <parameter name="pinMaxAttempts" type="integer" min="1" max="20">
+            <label>PIN Max Attempts</label>
+            <description>Consecutive wrong PINs before lockout.</description>
+            <default>3</default>
+        </parameter>
+        <parameter name="pinLockoutMinutes" type="integer" min="1" max="1440">
+            <label>PIN Lockout (min)</label>
+            <description>How long to lock the PIN entry after maxAttempts is reached.</description>
+            <default>15</default>
+        </parameter>
+        <parameter name="autoArmIdleMinutes" type="integer" min="0" max="1440">
+            <label>Auto-Arm Idle (min)</label>
+            <description>Auto-rearm ARMED_AWAY if zones quiet for this long. 0 disables.</description>
+            <default>0</default>
+        </parameter>
+        <parameter name="autoArmGraceMinutes" type="integer" min="0" max="60">
+            <label>Auto-Arm Grace (min)</label>
+            <description>Skip auto-arm for this long after a manual disarm.</description>
+            <default>5</default>
+        </parameter>
+        <parameter name="reminderIntervalSeconds" type="integer" min="60" max="7200">
+            <label>Reminder Interval (s)</label>
+            <description>How often to emit a reminder audit event while TRIGGERED.</description>
+            <default>1260</default>
+        </parameter>
+        <parameter name="auditLogPath" type="text">
+            <label>Audit Log Path</label>
+            <description>Absolute path of the audit log file (JSON lines).</description>
+            <default>/var/log/openhab/alarm-audit.log</default>
+        </parameter>
+        <parameter name="persistStateAcrossRestart" type="boolean">
+            <label>Persist State</label>
+            <description>Persist current state, armedAt and countdown so they survive an openHAB restart.</description>
+            <default>true</default>
+        </parameter>
+    </config-description>
+</config-description:config-descriptions>

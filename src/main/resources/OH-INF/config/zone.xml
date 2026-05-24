@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config-description:config-descriptions
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:config-description="https://openhab.org/schemas/config-description/v1.0.0"
+    xsi:schemaLocation="https://openhab.org/schemas/config-description/v1.0.0
+        https://openhab.org/schemas/config-description-1.0.0.xsd">
+    <config-description uri="thing-type:alarmpanel:zone">
+        <parameter name="inputs" type="text" required="true" multiple="true">
+            <label>Input Items</label>
+            <description>Items whose state changes are watched by this zone (Contact or Switch).</description>
+            <context>item</context>
+            <filter>
+                <criteria name="type">Contact,Switch</criteria>
+            </filter>
+        </parameter>
+        <parameter name="behavior" type="text" required="true">
+            <label>Behavior</label>
+            <description>How a violation is handled.</description>
+            <default>instant</default>
+            <options>
+                <option value="instant">Instant - violation triggers immediately</option>
+                <option value="entry-delay">Entry Delay - opens ENTRY_DELAY countdown</option>
+                <option value="informational">Informational - never triggers; only listed at arm-complete</option>
+                <option value="twentyfour-hour">24h - always armed, ignores panel state</option>
+            </options>
+        </parameter>
+        <parameter name="armModes" type="text" required="true">
+            <label>Arm Modes</label>
+            <description>Comma-separated list of arm modes that arm this zone. HOME, AWAY, or both ("HOME,AWAY").</description>
+            <default>AWAY</default>
+        </parameter>
+        <parameter name="inputTrigger" type="text">
+            <label>Input Trigger</label>
+            <description>Which input value counts as a violation. AUTO uses OPEN for Contact, ON for Switch.</description>
+            <default>AUTO</default>
+            <options>
+                <option value="AUTO">Auto (OPEN/ON)</option>
+                <option value="OPEN">OPEN</option>
+                <option value="CLOSED">CLOSED</option>
+                <option value="ON">ON</option>
+                <option value="OFF">OFF</option>
+            </options>
+        </parameter>
+        <parameter name="suppressionWindow" type="text">
+            <label>Suppression Window</label>
+            <description>HH:mm-HH:mm during which the zone is suppressed (e.g. 04:00-08:00 for HVAC false-positive period).</description>
+        </parameter>
+        <parameter name="requireSustainedSeconds" type="integer" min="0" max="300">
+            <label>Sustained (s)</label>
+            <description>Input must stay in the violating state for this many seconds before counting.</description>
+            <default>0</default>
+        </parameter>
+        <parameter name="label" type="text">
+            <label>Label</label>
+            <description>Friendly label used in audit log entries.</description>
+        </parameter>
+    </config-description>
+</config-description:config-descriptions>

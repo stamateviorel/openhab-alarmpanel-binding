@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<thing:thing-descriptions bindingId="alarmpanel"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:thing="https://openhab.org/schemas/thing-description/v1.0.0"
+    xsi:schemaLocation="https://openhab.org/schemas/thing-description/v1.0.0 https://openhab.org/schemas/thing-description-1.0.0.xsd">
+
+    <bridge-type id="panel">
+        <label>Alarm Panel</label>
+        <description>The bridge owns the state machine, PIN store, and audit log. Zones and outputs hang off this bridge.</description>
+        <channels>
+            <channel id="state" typeId="panel-state"/>
+            <channel id="command" typeId="panel-command"/>
+            <channel id="pinEntry" typeId="panel-pin-entry"/>
+            <channel id="countdown" typeId="panel-countdown"/>
+            <channel id="lastDisarmSource" typeId="panel-last-disarm-source"/>
+            <channel id="lastDisarmTime" typeId="panel-last-disarm-time"/>
+            <channel id="armedAt" typeId="panel-armed-at"/>
+            <channel id="triggeredAt" typeId="panel-triggered-at"/>
+            <channel id="failedAttempts" typeId="panel-failed-attempts"/>
+            <channel id="audit" typeId="panel-audit"/>
+        </channels>
+        <config-description-ref uri="thing-type:alarmpanel:panel"/>
+    </bridge-type>
+
+</thing:thing-descriptions>

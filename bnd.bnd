@@ -1,0 +1,4 @@
+Import-Package: \
+    !android.*,\
+    !dalvik.*,\
+    *

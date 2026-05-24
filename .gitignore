@@ -1,0 +1,29 @@
+# Maven build output
+target/
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+.factorypath
+.apt_generated/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor temp
+*.swp
+*.swo
+*~
+*.bak
+*.orig
+
+# Local dev artifacts
+*.log
+node_modules/
+dist/

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<binding:binding id="alarmpanel"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:binding="https://openhab.org/schemas/binding/v1.0.0"
+    xsi:schemaLocation="https://openhab.org/schemas/binding/v1.0.0 https://openhab.org/schemas/binding/v1.0.0">
+    <name>Alarm Panel</name>
+    <description>Generic alarm panel with hashed PINs, configurable zones and pluggable output drivers (siren, strobe, switch).</description>
+    <author>openHAB</author>
+    <config-description-ref uri="binding:alarmpanel"/>
+</binding:binding>

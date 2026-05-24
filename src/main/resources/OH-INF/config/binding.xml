@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config-description:config-descriptions
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:config-description="https://openhab.org/schemas/config-description/v1.0.0"
+    xsi:schemaLocation="https://openhab.org/schemas/config-description/v1.0.0
+        https://openhab.org/schemas/config-description-1.0.0.xsd">
+
+    <config-description uri="binding:alarmpanel">
+
+        <parameter-group name="integrations">
+            <label>Integrations</label>
+            <description>Settings consumed by JSR223 rules that integrate the alarm bridge with house systems (push, TTS, email, badge readers). Toggle these globally here — bridge / zone / output Things have their own timing parameters in Settings → Things.</description>
+        </parameter-group>
+
+        <parameter name="notificationsEnabled" type="boolean" groupName="integrations">
+            <label>Send Notifications</label>
+            <description>Master kill switch for push / TTS / email notifications emitted by alarm rules. Turn off during testing or maintenance.</description>
+            <default>true</default>
+        </parameter>
+
+        <parameter name="unifiDisarmDenylist" type="text" groupName="integrations">
+            <label>UniFi Disarm Denylist</label>
+            <description>Comma-separated UniFi user names that may NOT disarm via badge, even if UniFi grants door access. Example: "Contractor-A, Cleaner". Leave blank to allow every UniFi user that UniFi itself authorizes at the door.</description>
+            <default></default>
+        </parameter>
+
+        <parameter-group name="pins">
+            <label>PIN Management</label>
+            <description>PINs are managed as child Things of the bridge. Go to Settings → Things → AlarmPanel main → press + to add a PIN, or click an existing PIN child Thing to edit its label / toggle disabled / rotate the code. Power-user CRUD is also available from the Karaf console: openhab:alarmpanel pin list|add|remove|rename|enable|disable.</description>
+        </parameter-group>
+
+        <parameter-group name="logs">
+            <label>Logs</label>
+            <description>The audit log is a JSON-lines file at /var/log/openhab/alarm-audit.log. The 5 most recent events are also surfaced as Thing Properties on the bridge (Settings → Things → AlarmPanel main → Properties → recent_event_1 …). Use the Karaf console for a tail: openhab:alarmpanel events [N].</description>
+        </parameter-group>
+
+    </config-description>
+
+</config-description:config-descriptions>

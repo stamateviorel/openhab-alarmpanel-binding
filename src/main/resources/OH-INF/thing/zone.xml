@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<thing:thing-descriptions bindingId="alarmpanel"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:thing="https://openhab.org/schemas/thing-description/v1.0.0"
+    xsi:schemaLocation="https://openhab.org/schemas/thing-description/v1.0.0 https://openhab.org/schemas/thing-description-1.0.0.xsd">
+
+    <thing-type id="zone">
+        <supported-bridge-type-refs>
+            <bridge-type-ref id="panel"/>
+        </supported-bridge-type-refs>
+        <label>Alarm Zone</label>
+        <description>A set of input items (Contact or Switch) that report a violation to the panel.</description>
+        <channels>
+            <channel id="state" typeId="zone-state"/>
+            <channel id="lastViolation" typeId="zone-last-violation"/>
+            <channel id="lastViolationInput" typeId="zone-last-violation-input"/>
+            <channel id="enable" typeId="zone-enable"/>
+        </channels>
+        <config-description-ref uri="thing-type:alarmpanel:zone"/>
+    </thing-type>
+
+</thing:thing-descriptions>

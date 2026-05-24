@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<thing:thing-descriptions bindingId="alarmpanel"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:thing="https://openhab.org/schemas/thing-description/v1.0.0"
+    xsi:schemaLocation="https://openhab.org/schemas/thing-description/v1.0.0 https://openhab.org/schemas/thing-description-1.0.0.xsd">
+
+    <thing-type id="pin">
+        <supported-bridge-type-refs>
+            <bridge-type-ref id="panel"/>
+        </supported-bridge-type-refs>
+        <label>Alarm Panel PIN</label>
+        <description>A hashed PIN credential. Type the code in 'PIN Code', save — the binding hashes it, stores the hash as a property, and clears the field. The code is never readable again from openHAB. Edit Label / Disabled to manage; delete the Thing to revoke.</description>
+        <config-description-ref uri="thing-type:alarmpanel:pin"/>
+    </thing-type>
+
+</thing:thing-descriptions>

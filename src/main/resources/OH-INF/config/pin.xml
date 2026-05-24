@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config-description:config-descriptions
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:config-description="https://openhab.org/schemas/config-description/v1.0.0"
+    xsi:schemaLocation="https://openhab.org/schemas/config-description/v1.0.0
+        https://openhab.org/schemas/config-description-1.0.0.xsd">
+    <config-description uri="thing-type:alarmpanel:pin">
+        <parameter name="label" type="text" required="true">
+            <label>Label</label>
+            <description>Human-friendly name for this PIN (must not contain 4+ consecutive digits — leak risk).</description>
+        </parameter>
+        <parameter name="disabled" type="boolean">
+            <label>Disabled</label>
+            <description>Disable this PIN without deleting it.</description>
+            <default>false</default>
+        </parameter>
+        <parameter name="pinCode" type="text">
+            <label>PIN Code</label>
+            <description>Type the new PIN here (4-8 digits). On save the binding hashes it, stores the hash as a Property, then clears this field. To rotate a PIN, type a new value and save again.</description>
+            <context>password</context>
+        </parameter>
+    </config-description>
+</config-description:config-descriptions>
