@@ -7,7 +7,7 @@
 This project was built for the OpenHAB community to easily integrate alarm logic into their smart homes. However, it is a DIY project and comes with significant limitations:
 
 * **Not a Pro System:** This binding does not try to replicate a real, certified alarm system and will never replace a professional one. That said, a DIY alarm is better than no alarm, and pairing it with home cameras allows you to verify triggers yourself.
-* **Not a Secure Implementation:** Use this at your own risk; it comes with no responsibility or warranty. **Do not** take this as a fully secure implementation. Currently, PINs are stored in plaintext within the script, and OpenHAB rules can be bypassed or disabled. 
+* **Not a Secure Implementation:** Use this at your own risk; it comes with no responsibility or warranty. **Do not** take this as a fully secure implementation. COpenHAB can be bypassed or disabled. 
 * **Hardware Requirements for Reliability:** To make this effective, make sure you connect it to a loud, stable, and reliable alarm/siren system to scare off intruders. You also **highly recommend** using a UPS (Uninterruptible Power Supply) for your OpenHAB server, network switch, internet modem, and all critical sensors. 
 * **Know Your Needs:** If you are extremely concerned about home security, do not rely solely on this binding. You should pay for a professionally installed and monitored solution so that humans can make informed decisions when an alarm is triggered or the power/internet connection is cut.
 
