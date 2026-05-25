@@ -394,17 +394,6 @@ rules.JSRule({
 });
 ```
 
-### Auto-disarm from a UniFi badge tap
-
-The binding ships an example wiring under `automation/jsr223/alarmpanel_input_dispatch.js`
-that:
-
-- listens to `UserActivity_*` items from the UniFi Access binding;
-- dispatches `DISARM:unifi:badge:<name>(<door>)` only for whitelisted doors;
-- enforces the binding-level `unifiDisarmDenylist`;
-- when a denied user is rejected, sets `cache.shared.alarmpanel_knx_block_until = now + 10000` so the KNX-bus side trigger (`Gate_main_area_unifi_reader OPEN`) doesn't disarm anyway.
-
----
 
 ## Sitemap Example
 
