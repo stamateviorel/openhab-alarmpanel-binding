@@ -45,6 +45,14 @@
             <label>Suppression Window</label>
             <description>HH:mm-HH:mm during which the zone is suppressed (e.g. 04:00-08:00 for HVAC false-positive period).</description>
         </parameter>
+        <parameter name="suppressWhenItemsOn" type="text" multiple="true">
+            <label>Suppress When Item(s) ON</label>
+            <description>Items whose state, when ON (Switch/Group) or OPEN (Contact), suppresses this zone. Use to silence motion sensors during airflow from air-conditioning, dryer vent, etc. Comma-separated for multiple. Suppressed violations are still audit-logged as ZONE_SUPPRESSED.</description>
+            <context>item</context>
+            <filter>
+                <criteria name="type">Switch,Contact,Group</criteria>
+            </filter>
+        </parameter>
         <parameter name="requireSustainedSeconds" type="integer" min="0" max="300">
             <label>Sustained (s)</label>
             <description>Input must stay in the violating state for this many seconds before counting.</description>

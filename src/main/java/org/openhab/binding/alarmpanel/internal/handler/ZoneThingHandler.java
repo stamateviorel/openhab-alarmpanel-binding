@@ -68,6 +68,8 @@ public class ZoneThingHandler extends BaseThingHandler {
     private final Set<ArmMode> armModes = EnumSet.noneOf(ArmMode.class);
     private String inputTrigger = "AUTO";
     private @Nullable SuppressionWindow suppression;
+    /** Items whose ON / OPEN state suppresses this zone (e.g. airco running). */
+    private final Set<String> suppressWhenItemsOn = new HashSet<>();
     private int requireSustainedSeconds;
     private @Nullable String label;
     private boolean enabled = true;
@@ -99,8 +101,8 @@ public class ZoneThingHandler extends BaseThingHandler {
             return;
         }
         bridge.registerZone(this);
-        LOGGER.info("zone {} initialized: inputs={} behavior={} armModes={} sustained={}s window={}",
-                thing.getUID(), inputs, behavior, armModes, requireSustainedSeconds, suppression);
+        LOGGER.info("zone {} initialized: inputs={} behavior={} armModes={} sustained={}s window={} suppressWhenItemsOn={}",
+                thing.getUID(), inputs, behavior, armModes, requireSustainedSeconds, suppression, suppressWhenItemsOn);
         // Seed initial violating state from current item values.
         for (String name : inputs) {
             try {
@@ -171,6 +173,9 @@ public class ZoneThingHandler extends BaseThingHandler {
         inputTrigger = stringConfig("inputTrigger", "AUTO").toUpperCase(Locale.ROOT);
         suppression = SuppressionWindow.parse(stringConfig("suppressionWindow", null));
 
+        suppressWhenItemsOn.clear();
+        splitConfigValues(getConfig().get("suppressWhenItemsOn"), suppressWhenItemsOn::add);
+
         Object sustained = getConfig().get("requireSustainedSeconds");
         requireSustainedSeconds = sustained instanceof Number ? ((Number) sustained).intValue() : 0;
 
@@ -234,10 +239,11 @@ public class ZoneThingHandler extends BaseThingHandler {
 
         violatingNow.add(itemName);
 
-        if (isSuppressed()) {
+        String reason = suppressionReason(bridge);
+        if (reason != null) {
             bridge.getAuditLogger().log(new org.openhab.binding.alarmpanel.internal.audit.AuditEvent(
                     org.openhab.binding.alarmpanel.internal.audit.AuditEventType.ZONE_SUPPRESSED)
-                    .set("zone", getThingUid()).set("input", itemName));
+                    .set("zone", getThingUid()).set("input", itemName).set("reason", reason));
             publishZoneState();
             return;
         }
@@ -260,7 +266,12 @@ public class ZoneThingHandler extends BaseThingHandler {
             if (!violatingNow.contains(itemName) || !enabled) {
                 return;
             }
-            if (isSuppressed()) {
+            String r = suppressionReason(bridge);
+            if (r != null) {
+                bridge.getAuditLogger().log(new org.openhab.binding.alarmpanel.internal.audit.AuditEvent(
+                        org.openhab.binding.alarmpanel.internal.audit.AuditEventType.ZONE_SUPPRESSED)
+                        .set("zone", getThingUid()).set("input", itemName).set("reason", r)
+                        .set("after", "sustained"));
                 return;
             }
             bridge.onZoneViolation(this, itemName);
@@ -290,13 +301,53 @@ public class ZoneThingHandler extends BaseThingHandler {
         }
     }
 
-    private boolean isSuppressed() {
+    /** Time-window suppression only — used for the channel state badge. */
+    private boolean isSuppressedByWindow() {
         SuppressionWindow w = suppression;
         if (w == null) {
             return false;
         }
         return w.contains(LocalTime.now());
     }
+
+    /**
+     * True iff at least one of {@link #suppressWhenItemsOn} is currently in a
+     * "blocking" state — ON for Switch/Group of Switch, OPEN for Contact.
+     * Missing items don't block (defensive: prevents typos in config from
+     * silently disabling a zone).
+     */
+    private boolean isSuppressedByItem(AlarmPanelBridgeHandler bridge) {
+        if (suppressWhenItemsOn.isEmpty()) {
+            return false;
+        }
+        for (String name : suppressWhenItemsOn) {
+            try {
+                Item it = bridge.getItemRegistry().getItem(name);
+                State s = it.getState();
+                if (s == OnOffType.ON || s == OpenClosedType.OPEN) {
+                    return true;
+                }
+            } catch (ItemNotFoundException e) {
+                LOGGER.debug("zone {}: suppressWhenItemsOn item '{}' not found — ignored", thing.getUID(), name);
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns the suppression reason, or {@code null} if not suppressed.
+     * The reason is included in the ZONE_SUPPRESSED audit row.
+     */
+    private @Nullable String suppressionReason(@Nullable AlarmPanelBridgeHandler bridge) {
+        if (isSuppressedByWindow()) {
+            return "window:" + suppression;
+        }
+        if (bridge != null && isSuppressedByItem(bridge)) {
+            return "items:" + String.join(",", suppressWhenItemsOn);
+        }
+        return null;
+    }
+
 
     public boolean isCurrentlyViolating() {
         return !violatingNow.isEmpty();
@@ -350,7 +401,7 @@ public class ZoneThingHandler extends BaseThingHandler {
         String state;
         if (!enabled) {
             state = "DISABLED";
-        } else if (isSuppressed()) {
+        } else if (suppressionReason(getBridgeHandler()) != null) {
             state = "SUPPRESSED";
         } else if (!violatingNow.isEmpty()) {
             state = "VIOLATED";
