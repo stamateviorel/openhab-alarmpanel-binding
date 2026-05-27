@@ -102,15 +102,12 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
     private int triggerDurationSec = 600;
     private int pinMaxAttempts = 3;
     private int pinLockoutMinutes = 15;
-    private int autoArmIdleMinutes;
-    private int autoArmGraceMinutes = 5;
     private int reminderIntervalSec = 1260;
     private boolean persistAcrossRestart = true;
 
     // Active futures
     private @Nullable ScheduledFuture<?> countdownJob;
     private @Nullable ScheduledFuture<?> triggerSafetyJob;
-    private @Nullable ScheduledFuture<?> autoArmJob;
     private @Nullable ScheduledFuture<?> reminderJob;
 
     // Track which mode the user requested so EXIT_DELAY knows where to go.
@@ -188,7 +185,10 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
 
         updateStatus(ThingStatus.ONLINE);
         publishStateToChannels();
-        rescheduleAutoArm();
+        // Auto-arm policy is handled by the JS rule
+        // alarmpanel_auto_arm.js — the in-binding implementation was removed
+        // because it lacked persistence-based idle history and was unaware of
+        // zone suppression.
 
         // Register the item-state-change subscriber so zones see input updates.
         try {
@@ -217,8 +217,6 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
         triggerDurationSec = intConfig("triggerDurationSeconds", 600);
         pinMaxAttempts = intConfig("pinMaxAttempts", 3);
         pinLockoutMinutes = intConfig("pinLockoutMinutes", 15);
-        autoArmIdleMinutes = intConfig("autoArmIdleMinutes", 0);
-        autoArmGraceMinutes = intConfig("autoArmGraceMinutes", 5);
         reminderIntervalSec = intConfig("reminderIntervalSeconds", 1260);
         Object persist = getConfig().get("persistStateAcrossRestart");
         persistAcrossRestart = !(persist instanceof Boolean) || (Boolean) persist;
@@ -384,7 +382,6 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
         }
         cancel(countdownJob);
         cancel(triggerSafetyJob);
-        cancel(autoArmJob);
         cancel(reminderJob);
         for (OutputThingHandler o : outputs) {
             o.shutdownDriver();
@@ -694,47 +691,15 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
         }, reminderIntervalSec, reminderIntervalSec, TimeUnit.SECONDS);
     }
 
-    private void rescheduleAutoArm() {
-        cancel(autoArmJob);
-        if (autoArmIdleMinutes <= 0) {
-            return;
-        }
-        autoArmJob = scheduler.scheduleAtFixedRate(this::autoArmTick, 60, 60, TimeUnit.SECONDS);
-    }
-
-    private void autoArmTick() {
-        try {
-            PanelState s = machine.getState();
-            if (s != PanelState.DISARMED) {
-                return;
-            }
-            Instant disarmedAt = machine.getLastDisarmAt();
-            if (disarmedAt != null) {
-                long minsSinceDisarm = ChronoUnit.MINUTES.between(disarmedAt, Instant.now());
-                if (minsSinceDisarm < autoArmGraceMinutes) {
-                    return;
-                }
-            }
-            boolean anyZoneViolated = false;
-            for (ZoneThingHandler z : zones) {
-                if (z.isCurrentlyViolating()) {
-                    anyZoneViolated = true;
-                    break;
-                }
-            }
-            if (anyZoneViolated) {
-                return;
-            }
-            // Use armedAt timestamp of last arm to determine idle period — if
-            // we've been disarmed for autoArmIdleMinutes, arm AWAY.
-            if (disarmedAt == null
-                    || ChronoUnit.MINUTES.between(disarmedAt, Instant.now()) >= autoArmIdleMinutes) {
-                requestArm(ArmMode.AWAY, "auto_arm");
-            }
-        } catch (RuntimeException e) {
-            LOGGER.warn("autoArmTick error: {}", e.getMessage());
-        }
-    }
+    // Auto-arm scheduling intentionally not implemented here.
+    // The site's auto-arm policy lives in alarmpanel_auto_arm.js because:
+    //   - It needs 30-min idle history (via influxdb.persistence), which the
+    //     binding's per-tick "is anything currently violating?" check can't
+    //     answer (motion sensors flip fast; the tick can land in a "quiet"
+    //     microsecond between flips and false-arm).
+    //   - It needs to respect zone suppressWhenItemsOn (e.g. defer when the
+    //     office airco is running because the motion sensor is blinded).
+    // Keeping a single source of truth for the policy avoids dual auto-arm.
 
     private void afterTransition(Transition t) {
         if (persistAcrossRestart) {

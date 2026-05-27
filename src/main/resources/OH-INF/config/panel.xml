@@ -30,16 +30,6 @@
             <description>How long to lock the PIN entry after maxAttempts is reached.</description>
             <default>15</default>
         </parameter>
-        <parameter name="autoArmIdleMinutes" type="integer" min="0" max="1440">
-            <label>Auto-Arm Idle (min)</label>
-            <description>Auto-rearm ARMED_AWAY if zones quiet for this long. 0 disables.</description>
-            <default>0</default>
-        </parameter>
-        <parameter name="autoArmGraceMinutes" type="integer" min="0" max="60">
-            <label>Auto-Arm Grace (min)</label>
-            <description>Skip auto-arm for this long after a manual disarm.</description>
-            <default>5</default>
-        </parameter>
         <parameter name="reminderIntervalSeconds" type="integer" min="60" max="7200">
             <label>Reminder Interval (s)</label>
             <description>How often to emit a reminder audit event while TRIGGERED.</description>
