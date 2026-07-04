@@ -68,18 +68,23 @@ public class Mp3Driver implements OutputDriver {
     }
 
     @Override
-    public synchronized void engage() {
-        if (active) {
-            return;
+    public void engage() {
+        synchronized (this) {
+            if (active) {
+                return;
+            }
+            active = true;
+            ScheduledFuture<?> prev = loopJob;
+            if (prev != null) {
+                prev.cancel(false);
+            }
+            loopJob = ctx.scheduler.scheduleWithFixedDelay(this::playLoop, reassertSeconds, reassertSeconds,
+                    TimeUnit.SECONDS);
         }
-        active = true;
-        playOnce();
-        ScheduledFuture<?> prev = loopJob;
-        if (prev != null) {
-            prev.cancel(false);
-        }
-        loopJob = ctx.scheduler.scheduleWithFixedDelay(this::playOnce, reassertSeconds, reassertSeconds,
-                TimeUnit.SECONDS);
+        // First play OUTSIDE the monitor: AudioManager.play() can block (sink
+        // acquisition / decode); holding the lock across it would let a slow sink
+        // wedge a concurrent release()/shutdown() — i.e. delay a disarm.
+        playLoop();
     }
 
     @Override
@@ -93,23 +98,26 @@ public class Mp3Driver implements OutputDriver {
     }
 
     @Override
-    public synchronized void test(int durationSeconds) {
-        ScheduledFuture<?> prev = testJob;
-        if (prev != null) {
-            prev.cancel(false);
-        }
-        playOnce();
-        if (loopJob == null) {
-            active = true;
-        }
+    public void test(int durationSeconds) {
         int delay = Math.max(1, durationSeconds);
-        testJob = ctx.scheduler.schedule(() -> {
-            synchronized (Mp3Driver.this) {
-                if (loopJob == null) {
-                    active = false;
-                }
+        synchronized (this) {
+            ScheduledFuture<?> prev = testJob;
+            if (prev != null) {
+                prev.cancel(false);
             }
-        }, delay, TimeUnit.SECONDS);
+            if (loopJob == null) {
+                active = true;
+            }
+            testJob = ctx.scheduler.schedule(() -> {
+                synchronized (Mp3Driver.this) {
+                    if (loopJob == null) {
+                        active = false;
+                    }
+                }
+            }, delay, TimeUnit.SECONDS);
+        }
+        // Play outside the monitor (see engage()).
+        playLoop();
     }
 
     @Override
@@ -134,6 +142,19 @@ public class Mp3Driver implements OutputDriver {
         if (t != null) {
             t.cancel(true);
             testJob = null;
+        }
+    }
+
+    private void playLoop() {
+        // Guard the repeating task: an escaping Throwable would cancel the
+        // scheduleWithFixedDelay loop and silence the siren. playOnce() already
+        // catches IOException/RuntimeException; this additionally swallows anything
+        // else so the loop survives.
+        try {
+            playOnce();
+        } catch (Throwable t) {
+            lastError = "play loop error: " + t;
+            LOGGER.warn("Mp3Driver: play loop error: {}", t.toString());
         }
     }
 

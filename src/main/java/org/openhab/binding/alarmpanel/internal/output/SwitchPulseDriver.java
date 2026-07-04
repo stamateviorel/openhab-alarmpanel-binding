@@ -133,10 +133,19 @@ public class SwitchPulseDriver implements OutputDriver {
     }
 
     private void reassert() {
-        if (!active) {
-            return;
+        // Catch everything: an escaping Throwable from a scheduleWithFixedDelay task
+        // permanently cancels the repeat loop, which for a siren claim would silently
+        // stop re-asserting ON. sendCommand() already swallows its own errors, but this
+        // is the belt-and-suspenders that keeps the claim loop alive no matter what.
+        try {
+            if (!active) {
+                return;
+            }
+            sendCommand(OnOffType.ON);
+        } catch (Throwable t) {
+            lastError = "reassert error: " + t;
+            LOGGER.warn("SwitchPulseDriver: reassert error on {}: {}", targetItemName, t.toString());
         }
-        sendCommand(OnOffType.ON);
     }
 
     private void sendCommand(OnOffType cmd) {

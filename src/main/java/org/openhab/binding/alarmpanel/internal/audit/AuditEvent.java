@@ -13,6 +13,7 @@
 package org.openhab.binding.alarmpanel.internal.audit;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -64,6 +65,10 @@ public final class AuditEvent {
     }
 
     public Map<String, String> getFields() {
-        return fields;
+        // Return an immutable, insertion-ordered snapshot. The field is mutable
+        // during the builder phase (set()), but once handed to a reader it must not
+        // be mutated; a copy also means a reader can never hit a
+        // ConcurrentModificationException if the event is ever shared across threads.
+        return Collections.unmodifiableMap(new LinkedHashMap<>(fields));
     }
 }

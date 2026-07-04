@@ -89,8 +89,8 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
     // Owned state
     private final StateMachine machine = new StateMachine();
     private final AuditLogger audit = new AuditLogger();
-    private @Nullable PinStore pinStore;
-    private @Nullable RateLimiter rateLimiter;
+    private volatile @Nullable PinStore pinStore;
+    private volatile @Nullable RateLimiter rateLimiter;
 
     // Children
     private final Set<ZoneThingHandler> zones = ConcurrentHashMap.newKeySet();
@@ -105,13 +105,28 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
     private int reminderIntervalSec = 1260;
     private boolean persistAcrossRestart = true;
 
-    // Active futures
-    private @Nullable ScheduledFuture<?> countdownJob;
-    private @Nullable ScheduledFuture<?> triggerSafetyJob;
-    private @Nullable ScheduledFuture<?> reminderJob;
+    // True once the triggerDuration safety cap (or a manual silence) released the
+    // outputs while the panel is still TRIGGERED. A NEW zone-violation edge in that
+    // window re-engages the outputs for another triggerDuration round, so an intruder
+    // moving again after the 10-min siren cap restarts the siren (2026-07-04, owner
+    // request). Cleared whenever outputs (re-)engage or release for other reasons.
+    private volatile boolean outputsSilenced = false;
+
+    // Active futures. Guarded by timerLock for the compound cancel-then-reschedule
+    // (and nulled under the same lock), so concurrent arm/disarm/trigger from the
+    // command pool, REST, console, event thread and scheduler callbacks can never
+    // leak or double-fire a timer. volatile additionally guarantees visibility.
+    private final Object timerLock = new Object();
+    private volatile @Nullable ScheduledFuture<?> countdownJob;
+    private volatile @Nullable ScheduledFuture<?> triggerSafetyJob;
+    private volatile @Nullable ScheduledFuture<?> reminderJob;
+
+    // Serializes the PIN verify path (isLocked -> verify -> recordFailure) so
+    // concurrent attempts cannot bypass the brute-force lockout.
+    private final Object pinLock = new Object();
 
     // Track which mode the user requested so EXIT_DELAY knows where to go.
-    private @Nullable ArmMode pendingArmMode;
+    private volatile @Nullable ArmMode pendingArmMode;
 
     // Event subscription (item state changes) — registered on initialize, unregistered on dispose.
     private @Nullable ServiceRegistration<EventSubscriber> eventReg;
@@ -380,9 +395,14 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
             }
             eventReg = null;
         }
-        cancel(countdownJob);
-        cancel(triggerSafetyJob);
-        cancel(reminderJob);
+        synchronized (timerLock) {
+            cancel(countdownJob);
+            countdownJob = null;
+            cancel(triggerSafetyJob);
+            triggerSafetyJob = null;
+            cancel(reminderJob);
+            reminderJob = null;
+        }
         for (OutputThingHandler o : outputs) {
             o.shutdownDriver();
         }
@@ -441,9 +461,26 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
                     .set("input", inputItem).set("state", s.name()).set("acted", false));
             return;
         }
-        if (s == PanelState.ENTRY_DELAY || s == PanelState.TRIGGERED) {
+        if (s == PanelState.ENTRY_DELAY) {
             audit.log(new AuditEvent(AuditEventType.ZONE_VIOLATION).set("zone", zone.getThingUid())
                     .set("input", inputItem).set("state", s.name()).set("acted", false));
+            return;
+        }
+        if (s == PanelState.TRIGGERED) {
+            // Siren still sounding: nothing to do. Siren silenced by the
+            // triggerDuration cap: a NEW violation edge re-engages the outputs
+            // for another triggerDuration round (intruder still moving).
+            if (outputsSilenced) {
+                outputsSilenced = false;
+                audit.log(new AuditEvent(AuditEventType.TRIGGER).set("retrigger", true)
+                        .set("zone", zone.getThingUid()).set("input", inputItem));
+                engageAllOutputs();
+                scheduleTriggerSafety();
+                scheduleReminder();
+            } else {
+                audit.log(new AuditEvent(AuditEventType.ZONE_VIOLATION).set("zone", zone.getThingUid())
+                        .set("input", inputItem).set("state", s.name()).set("acted", false));
+            }
             return;
         }
 
@@ -482,9 +519,14 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
                     .set("from", machine.getState().name()).set("reason", "illegal_transition"));
             return;
         }
-        cancel(countdownJob);
-        cancel(triggerSafetyJob);
-        cancel(reminderJob);
+        synchronized (timerLock) {
+            cancel(countdownJob);
+            countdownJob = null;
+            cancel(triggerSafetyJob);
+            triggerSafetyJob = null;
+            cancel(reminderJob);
+            reminderJob = null;
+        }
         releaseAllOutputs();
         audit.log(new AuditEvent(AuditEventType.DISARM).set("from", t.from.name()).set("source", source)
                 .set("detail", detail));
@@ -514,7 +556,11 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
             return;
         }
         releaseAllOutputs();
-        cancel(reminderJob);
+        outputsSilenced = true; // after release: a new violation edge may re-engage
+        synchronized (timerLock) {
+            cancel(reminderJob);
+            reminderJob = null;
+        }
         audit.log(new AuditEvent(AuditEventType.OUTPUT_RELEASED).set("source", source).set("reason", "SILENCE"));
     }
 
@@ -536,25 +582,34 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
         if (ps == null || rl == null) {
             return;
         }
-        if (rl.isLocked()) {
-            audit.log(new AuditEvent(AuditEventType.PIN_LOCKED).set("entered_len", String.valueOf(enteredPin.length())));
-            return;
+        // Serialize the whole verify path: isLocked() -> verify() -> recordFailure()
+        // must be atomic. Each RateLimiter method is individually synchronized, but
+        // without this guard concurrent attempts (e.g. parallel REST calls) could all
+        // clear the isLocked() gate before any of them increments the failed counter,
+        // defeating the brute-force lockout. The PBKDF2 verify is the throughput
+        // bottleneck anyway, so serializing attempts is also desirable, not costly.
+        synchronized (pinLock) {
+            if (rl.isLocked()) {
+                audit.log(new AuditEvent(AuditEventType.PIN_LOCKED).set("entered_len",
+                        String.valueOf(enteredPin.length())));
+                return;
+            }
+            char[] chars = enteredPin.toCharArray();
+            PinRecord rec = ps.verify(chars);
+            if (rec != null) {
+                rl.recordSuccess();
+                audit.log(new AuditEvent(AuditEventType.PIN_OK).set("label", rec.label));
+                // Disarm always — if not in an armed state this is a no-op transition.
+                requestDisarm("pin:" + rec.label, null);
+            } else {
+                boolean locked = rl.recordFailure();
+                audit.log(new AuditEvent(AuditEventType.PIN_WRONG).set("attempts", rl.getFailedCount())
+                        .set("locked", locked));
+            }
+            // Wipe the StringType-derived PIN value from the channel — write the
+            // empty string back so it doesn't persist as a state.
+            updateState(new ChannelUID(getThing().getUID(), AlarmPanelBindingConstants.CH_PIN_ENTRY), UnDefType.NULL);
         }
-        char[] chars = enteredPin.toCharArray();
-        PinRecord rec = ps.verify(chars);
-        if (rec != null) {
-            rl.recordSuccess();
-            audit.log(new AuditEvent(AuditEventType.PIN_OK).set("label", rec.label));
-            // Disarm always — if not in an armed state this is a no-op transition.
-            requestDisarm("pin:" + rec.label, null);
-        } else {
-            boolean locked = rl.recordFailure();
-            audit.log(new AuditEvent(AuditEventType.PIN_WRONG).set("attempts", rl.getFailedCount())
-                    .set("locked", locked));
-        }
-        // Wipe the StringType-derived PIN value from the channel — write the
-        // empty string back so it doesn't persist as a state.
-        updateState(new ChannelUID(getThing().getUID(), AlarmPanelBindingConstants.CH_PIN_ENTRY), UnDefType.NULL);
     }
 
     private void scheduleExitCountdown(String source, ArmMode mode) {
@@ -591,8 +646,10 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
     }
 
     private void scheduleCountdownTick() {
-        cancel(countdownJob);
-        countdownJob = scheduler.scheduleAtFixedRate(this::countdownTick, 1, 1, TimeUnit.SECONDS);
+        synchronized (timerLock) {
+            cancel(countdownJob);
+            countdownJob = scheduler.scheduleAtFixedRate(this::countdownTick, 1, 1, TimeUnit.SECONDS);
+        }
         // Publish initial countdown value immediately
         publishCountdownToChannel();
     }
@@ -601,15 +658,19 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
         try {
             Instant ends = machine.getCountdownEndsAt();
             if (ends == null) {
-                cancel(countdownJob);
-                countdownJob = null;
+                synchronized (timerLock) {
+                    cancel(countdownJob);
+                    countdownJob = null;
+                }
                 publishCountdownToChannel();
                 return;
             }
             long millisLeft = java.time.Duration.between(Instant.now(), ends).toMillis();
             if (millisLeft <= 0) {
-                cancel(countdownJob);
-                countdownJob = null;
+                synchronized (timerLock) {
+                    cancel(countdownJob);
+                    countdownJob = null;
+                }
                 machine.setCountdownEndsAt(null);
                 onCountdownExpiry();
                 return;
@@ -648,6 +709,7 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
     }
 
     private void engageAllOutputs() {
+        outputsSilenced = false;
         for (OutputThingHandler o : outputs) {
             try {
                 o.engageDriver();
@@ -670,25 +732,30 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
     }
 
     private void scheduleTriggerSafety() {
-        cancel(triggerSafetyJob);
-        triggerSafetyJob = scheduler.schedule(() -> {
-            if (machine.getState() == PanelState.TRIGGERED) {
-                LOGGER.info("alarmpanel: triggerDuration reached, auto-silencing");
-                requestSilence("safety_cap");
-            }
-        }, triggerDurationSec, TimeUnit.SECONDS);
+        synchronized (timerLock) {
+            cancel(triggerSafetyJob);
+            triggerSafetyJob = scheduler.schedule(() -> {
+                if (machine.getState() == PanelState.TRIGGERED) {
+                    LOGGER.info("alarmpanel: triggerDuration reached, auto-silencing");
+                    requestSilence("safety_cap");
+                }
+            }, triggerDurationSec, TimeUnit.SECONDS);
+        }
     }
 
     private void scheduleReminder() {
-        cancel(reminderJob);
-        if (reminderIntervalSec <= 0) {
-            return;
-        }
-        reminderJob = scheduler.scheduleAtFixedRate(() -> {
-            if (machine.getState() == PanelState.TRIGGERED) {
-                audit.log(new AuditEvent(AuditEventType.TRIGGER).set("reminder", true));
+        synchronized (timerLock) {
+            cancel(reminderJob);
+            reminderJob = null;
+            if (reminderIntervalSec <= 0) {
+                return;
             }
-        }, reminderIntervalSec, reminderIntervalSec, TimeUnit.SECONDS);
+            reminderJob = scheduler.scheduleAtFixedRate(() -> {
+                if (machine.getState() == PanelState.TRIGGERED) {
+                    audit.log(new AuditEvent(AuditEventType.TRIGGER).set("reminder", true));
+                }
+            }, reminderIntervalSec, reminderIntervalSec, TimeUnit.SECONDS);
+        }
     }
 
     // Auto-arm scheduling intentionally not implemented here.

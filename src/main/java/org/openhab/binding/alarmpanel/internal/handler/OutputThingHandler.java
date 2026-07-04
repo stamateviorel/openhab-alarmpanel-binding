@@ -13,6 +13,8 @@
 package org.openhab.binding.alarmpanel.internal.handler;
 
 import java.util.Locale;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
@@ -45,8 +47,13 @@ public class OutputThingHandler extends BaseThingHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OutputThingHandler.class);
 
-    private @Nullable OutputDriver driver;
-    private int testDurationSec = 5;
+    // volatile: written in initialize(), read from handleCommand (command pool) and
+    // the bridge's engage/release calls (event/scheduler threads).
+    private volatile @Nullable OutputDriver driver;
+    private volatile int testDurationSec = 5;
+    // The momentary "test → auto-off" future, tracked so dispose() can cancel it
+    // (no updateState after dispose) and a repeated test replaces rather than stacks.
+    private volatile @Nullable ScheduledFuture<?> testResetJob;
 
     public OutputThingHandler(Thing thing) {
         super(thing);
@@ -115,6 +122,11 @@ public class OutputThingHandler extends BaseThingHandler {
         if (bridge != null) {
             bridge.unregisterOutput(this);
         }
+        ScheduledFuture<?> tr = testResetJob;
+        if (tr != null) {
+            tr.cancel(false);
+            testResetJob = null;
+        }
         shutdownDriver();
         super.dispose();
     }
@@ -177,10 +189,14 @@ public class OutputThingHandler extends BaseThingHandler {
                 // Auto-clear the test switch back to OFF after the test duration so the
                 // momentary semantics are visible in the UI. Also re-publish active state
                 // (it goes false inside the driver when the test scheduled task fires).
-                scheduler.schedule(() -> {
+                ScheduledFuture<?> prevReset = testResetJob;
+                if (prevReset != null) {
+                    prevReset.cancel(false);
+                }
+                testResetJob = scheduler.schedule(() -> {
                     updateState(channelUID, OnOffType.OFF);
                     publishActive();
-                }, testDurationSec + 1, java.util.concurrent.TimeUnit.SECONDS);
+                }, testDurationSec + 1, TimeUnit.SECONDS);
             }
         }
     }

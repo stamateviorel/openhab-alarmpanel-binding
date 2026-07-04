@@ -18,12 +18,12 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -72,16 +72,24 @@ public class ZoneThingHandler extends BaseThingHandler {
     private final Set<String> suppressWhenItemsOn = new HashSet<>();
     private int requireSustainedSeconds;
     private @Nullable String label;
-    private boolean enabled = true;
+    // Written from handleCommand (command pool), read from onInputChange (event
+    // thread) and the sustained-check scheduler callback — must be volatile.
+    private volatile boolean enabled = true;
 
     /**
      * Per-input scheduled "still violating after N seconds" futures.
      */
-    private final Map<String, ScheduledFuture<?>> pendingSustained = new HashMap<>();
+    // ConcurrentHashMap: mutated from the event-dispatch thread (onInputChange,
+    // called directly by the bridge) AND the scheduler thread (the sustained-check
+    // callback) AND the command pool (handleCommand disable) AND dispose — a plain
+    // HashMap here is a data race that can corrupt the table.
+    private final Map<String, ScheduledFuture<?>> pendingSustained = new ConcurrentHashMap<>();
     /**
-     * Inputs currently violating (used for auto-arm pre-check).
+     * Inputs currently violating (used for auto-arm pre-check). Concurrent set for
+     * the same reason: written on the event thread, read on the scheduler thread
+     * and the auto-arm pre-check thread.
      */
-    private final Set<String> violatingNow = new HashSet<>();
+    private final Set<String> violatingNow = ConcurrentHashMap.newKeySet();
 
     public ZoneThingHandler(Thing thing) {
         super(thing);
