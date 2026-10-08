@@ -688,7 +688,7 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
             PanelState target = (mode == ArmMode.HOME) ? PanelState.ARMED_HOME : PanelState.ARMED_AWAY;
             Transition t = machine.transitionTo(target, "exit_countdown", null);
             if (t != null) {
-                audit.log(new AuditEvent(AuditEventType.STATE).set("from", t.from.name()).set("to", t.to.name()));
+                // afterTransition() now writes the audit row itself, with the source attached.
                 afterTransition(t);
             }
         } else if (current == PanelState.ENTRY_DELAY) {
@@ -777,7 +777,12 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
         // ENTRY_DELAY (without this the channel sticks at the last visible value,
         // e.g. "4" if disarmed at countdown=4).
         publishCountdownToChannel();
-        publishAuditEvent(new AuditEvent(AuditEventType.STATE).set("from", t.from.name()).set("to", t.to.name())
+        // audit.log() persists to the audit file and forwards to the channel through the
+        // listener. publishAuditEvent() only triggers the channel, so using it here kept every
+        // sourced transition -- including ARMED_AWAY -> ENTRY_DELAY, the one row that names the
+        // zone that started a countdown -- out of the file. Five months of audit history could
+        // not explain a single false alarm because of this.
+        audit.log(new AuditEvent(AuditEventType.STATE).set("from", t.from.name()).set("to", t.to.name())
                 .set("source", t.source));
     }
 
