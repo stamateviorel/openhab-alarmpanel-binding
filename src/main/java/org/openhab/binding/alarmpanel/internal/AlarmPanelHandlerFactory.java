@@ -21,6 +21,7 @@ import org.openhab.binding.alarmpanel.internal.handler.ZoneThingHandler;
 import org.openhab.core.audio.AudioManager;
 import org.openhab.core.events.EventPublisher;
 import org.openhab.core.items.ItemRegistry;
+import org.openhab.core.storage.StorageService;
 import org.openhab.core.thing.Bridge;
 import org.openhab.core.thing.ManagedThingProvider;
 import org.openhab.core.thing.Thing;
@@ -48,16 +49,19 @@ public class AlarmPanelHandlerFactory extends BaseThingHandlerFactory {
     private final ItemRegistry itemRegistry;
     private final ThingRegistry thingRegistry;
     private final ManagedThingProvider managedThingProvider;
+    private final StorageService storageService;
     private volatile @Nullable AudioManager audioManager;
 
     @Activate
     public AlarmPanelHandlerFactory(final @Reference EventPublisher eventPublisher,
             final @Reference ItemRegistry itemRegistry, final @Reference ThingRegistry thingRegistry,
-            final @Reference ManagedThingProvider managedThingProvider) {
+            final @Reference ManagedThingProvider managedThingProvider,
+            final @Reference StorageService storageService) {
         this.eventPublisher = eventPublisher;
         this.itemRegistry = itemRegistry;
         this.thingRegistry = thingRegistry;
         this.managedThingProvider = managedThingProvider;
+        this.storageService = storageService;
     }
 
     @Reference(cardinality = ReferenceCardinality.OPTIONAL, policy = ReferencePolicy.DYNAMIC)
@@ -65,6 +69,15 @@ public class AlarmPanelHandlerFactory extends BaseThingHandlerFactory {
         this.audioManager = audioManager;
     }
 
+    /**
+     * Reference identity is deliberate here, so PMD's CompareObjectsWithEquals is suppressed
+     * rather than satisfied. On a DYNAMIC 0..1 reference, SCR may bind a replacement before
+     * unbinding the old service; clearing the field only when the instance being unbound is the
+     * one actually held keeps that swap from dropping the new reference. equals() would be wrong
+     * (two distinct managers could compare equal) and an unconditional null would reintroduce the
+     * race the guard exists to prevent.
+     */
+    @SuppressWarnings("PMD.CompareObjectsWithEquals")
     public void unsetAudioManager(AudioManager audioManager) {
         if (this.audioManager == audioManager) {
             this.audioManager = null;
@@ -84,7 +97,7 @@ public class AlarmPanelHandlerFactory extends BaseThingHandlerFactory {
         ThingTypeUID t = thing.getThingTypeUID();
         if (AlarmPanelBindingConstants.THING_TYPE_PANEL.equals(t)) {
             return new AlarmPanelBridgeHandler((Bridge) thing, eventPublisher, itemRegistry, thingRegistry,
-                    managedThingProvider, audioManager);
+                    managedThingProvider, audioManager, storageService);
         }
         if (AlarmPanelBindingConstants.THING_TYPE_ZONE.equals(t)) {
             return new ZoneThingHandler(thing);
