@@ -104,8 +104,8 @@ public class AlarmPanelRestResource implements RESTResource {
     public Response getState() {
         AlarmPanelBridgeHandler bridge = findBridge();
         if (bridge == null) {
-            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
-                    .entity(errorJson("no alarmpanel bridge")).build();
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE).entity(errorJson("no alarmpanel bridge"))
+                    .build();
         }
         PinStore ps = bridge.getPinStore();
         Map<String, Object> out = new HashMap<>();
@@ -119,13 +119,13 @@ public class AlarmPanelRestResource implements RESTResource {
     public Response listPins() {
         AlarmPanelBridgeHandler bridge = findBridge();
         if (bridge == null) {
-            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
-                    .entity(errorJson("no alarmpanel bridge")).build();
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE).entity(errorJson("no alarmpanel bridge"))
+                    .build();
         }
         PinStore ps = bridge.getPinStore();
         if (ps == null) {
-            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
-                    .entity(errorJson("pin store not initialized")).build();
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE).entity(errorJson("pin store not initialized"))
+                    .build();
         }
         List<Map<String, Object>> rows = new ArrayList<>();
         for (PinRecord r : ps.snapshot()) {
@@ -148,17 +148,17 @@ public class AlarmPanelRestResource implements RESTResource {
     public Response addPin(@Nullable JsonObject body) {
         AlarmPanelBridgeHandler bridge = findBridge();
         if (bridge == null) {
-            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
-                    .entity(errorJson("no alarmpanel bridge")).build();
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE).entity(errorJson("no alarmpanel bridge"))
+                    .build();
         }
         PinStore ps = bridge.getPinStore();
         if (ps == null) {
-            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
-                    .entity(errorJson("pin store not initialized")).build();
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE).entity(errorJson("pin store not initialized"))
+                    .build();
         }
         if (body == null) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(errorJson("JSON body required: {label, pin}")).build();
+            return Response.status(Response.Status.BAD_REQUEST).entity(errorJson("JSON body required: {label, pin}"))
+                    .build();
         }
         String label;
         char[] pinChars;
@@ -175,8 +175,8 @@ public class AlarmPanelRestResource implements RESTResource {
             }
             pinChars = pin.toCharArray();
         } catch (RuntimeException e) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(errorJson("invalid JSON: " + e.getMessage())).build();
+            return Response.status(Response.Status.BAD_REQUEST).entity(errorJson("invalid JSON: " + e.getMessage()))
+                    .build();
         }
         try {
             String id = ps.add(label, pinChars);
@@ -196,28 +196,26 @@ public class AlarmPanelRestResource implements RESTResource {
     public Response renamePin(@PathParam("id") String id, @Nullable JsonObject body) {
         AlarmPanelBridgeHandler bridge = findBridge();
         if (bridge == null) {
-            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
-                    .entity(errorJson("no alarmpanel bridge")).build();
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE).entity(errorJson("no alarmpanel bridge"))
+                    .build();
         }
         PinStore ps = bridge.getPinStore();
         if (ps == null) {
-            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
-                    .entity(errorJson("pin store not initialized")).build();
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE).entity(errorJson("pin store not initialized"))
+                    .build();
         }
         if (body == null || !body.has("label")) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(errorJson("JSON body required: {label}")).build();
+            return Response.status(Response.Status.BAD_REQUEST).entity(errorJson("JSON body required: {label}"))
+                    .build();
         }
         String newLabel;
         try {
             newLabel = body.get("label").getAsString();
         } catch (RuntimeException e) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(errorJson("label must be a string")).build();
+            return Response.status(Response.Status.BAD_REQUEST).entity(errorJson("label must be a string")).build();
         }
         if (newLabel.isBlank()) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(errorJson("label may not be blank")).build();
+            return Response.status(Response.Status.BAD_REQUEST).entity(errorJson("label may not be blank")).build();
         }
         if (LABEL_DIGIT_LEAK.matcher(newLabel).find()) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -231,8 +229,7 @@ public class AlarmPanelRestResource implements RESTResource {
             }
         }
         if (matchedId == null) {
-            return Response.status(Response.Status.NOT_FOUND).entity(errorJson("no pin with id/label " + id))
-                    .build();
+            return Response.status(Response.Status.NOT_FOUND).entity(errorJson("no pin with id/label " + id)).build();
         }
         boolean ok = ps.rename(matchedId, newLabel);
         if (!ok) {
@@ -249,13 +246,13 @@ public class AlarmPanelRestResource implements RESTResource {
     public Response removePin(@PathParam("id") String id) {
         AlarmPanelBridgeHandler bridge = findBridge();
         if (bridge == null) {
-            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
-                    .entity(errorJson("no alarmpanel bridge")).build();
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE).entity(errorJson("no alarmpanel bridge"))
+                    .build();
         }
         PinStore ps = bridge.getPinStore();
         if (ps == null) {
-            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
-                    .entity(errorJson("pin store not initialized")).build();
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE).entity(errorJson("pin store not initialized"))
+                    .build();
         }
         if (id == null || id.isBlank()) {
             return Response.status(Response.Status.BAD_REQUEST).entity(errorJson("id required")).build();
@@ -269,8 +266,7 @@ public class AlarmPanelRestResource implements RESTResource {
             }
         }
         if (matchedId == null) {
-            return Response.status(Response.Status.NOT_FOUND).entity(errorJson("no pin with id/label " + id))
-                    .build();
+            return Response.status(Response.Status.NOT_FOUND).entity(errorJson("no pin with id/label " + id)).build();
         }
         boolean ok = ps.remove(matchedId);
         if (ok) {

@@ -32,16 +32,18 @@ import org.slf4j.LoggerFactory;
  * {@code binding.alarmpanel} — the same PID MainUI uses when you edit
  * Settings → Add-on Settings → Alarm Panel.
  *
- * <p>Registered as an OSGi service so:
+ * <p>
+ * Registered as an OSGi service so:
  * <ul>
- *   <li>Java handlers can {@code @Reference AlarmPanelBindingConfig} and call
- *       the getters.</li>
- *   <li>JSR223 / JS rules can look it up via
- *       {@code osgi.getService('org.openhab.binding.alarmpanel.internal.AlarmPanelBindingConfig')}
- *       (see {@code shared_utils.alarmNotificationsEnabled()}).</li>
+ * <li>Java handlers can {@code @Reference AlarmPanelBindingConfig} and call
+ * the getters.</li>
+ * <li>JSR223 / JS rules can look it up via
+ * {@code osgi.getService('org.openhab.binding.alarmpanel.internal.AlarmPanelBindingConfig')}
+ * (see {@code shared_utils.alarmNotificationsEnabled()}).</li>
  * </ul>
  *
- * <p>The pair of fields is intentionally narrow: things that <em>aren't</em>
+ * <p>
+ * The pair of fields is intentionally narrow: things that <em>aren't</em>
  * per-instance go here. Per-bridge timing parameters (entry delay, exit
  * delay, audit log path, …) stay on the bridge Thing.
  *
@@ -103,9 +105,6 @@ public class AlarmPanelBindingConfig {
         if (raw.isBlank()) {
             return Collections.emptyList();
         }
-        return Arrays.stream(raw.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .toList();
+        return Arrays.stream(raw.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList();
     }
 }

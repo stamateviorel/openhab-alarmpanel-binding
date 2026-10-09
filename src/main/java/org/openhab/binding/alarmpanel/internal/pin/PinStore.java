@@ -40,12 +40,14 @@ import org.slf4j.LoggerFactory;
 /**
  * Facade over child PIN Things owned by the panel bridge.
  *
- * <p>Each PIN credential is now a Thing of type {@code alarmpanel:pin} parented
+ * <p>
+ * Each PIN credential is now a Thing of type {@code alarmpanel:pin} parented
  * to the bridge. This class exposes the original {@code add / remove / verify /
  * list} surface used by the bridge handler, Karaf commands and REST endpoints,
  * but reads/writes go through the {@link ThingRegistry} instead of a JSON file.
  *
- * <p>Why: PIN Things show up natively in MainUI's Settings → Things page as
+ * <p>
+ * Why: PIN Things show up natively in MainUI's Settings → Things page as
  * children of the bridge — no custom UI required for CRUD.
  *
  * @author openHAB - Initial contribution
@@ -123,11 +125,10 @@ public class PinStore {
      * Lower-level entry — register a Thing for an already-hashed PIN. Used by
      * {@link #migrateLegacyFile} so re-hashing isn't required.
      */
-    public synchronized String addExisting(String label, String hash, Instant created,
-            @Nullable Instant lastUsed, boolean disabled) {
+    public synchronized String addExisting(String label, String hash, Instant created, @Nullable Instant lastUsed,
+            boolean disabled) {
         String id = UUID.randomUUID().toString();
-        ThingUID thingUid = new ThingUID(AlarmPanelBindingConstants.THING_TYPE_PIN,
-                bridge.getUID(), id);
+        ThingUID thingUid = new ThingUID(AlarmPanelBindingConstants.THING_TYPE_PIN, bridge.getUID(), id);
 
         Configuration cfg = new Configuration();
         cfg.put(AlarmPanelBindingConstants.CFG_PIN_LABEL, label);
@@ -142,16 +143,12 @@ public class PinStore {
             props.put(AlarmPanelBindingConstants.PROP_PIN_LAST_USED, lastUsed.toString());
         }
 
-        Thing pin = ThingBuilder.create(AlarmPanelBindingConstants.THING_TYPE_PIN, thingUid)
-                .withBridge(bridge.getUID())
-                .withLabel("PIN " + label)
-                .withConfiguration(cfg)
-                .withProperties(props)
-                .build();
+        Thing pin = ThingBuilder.create(AlarmPanelBindingConstants.THING_TYPE_PIN, thingUid).withBridge(bridge.getUID())
+                .withLabel("PIN " + label).withConfiguration(cfg).withProperties(props).build();
         // Use ManagedThingProvider directly — guarantees JSONDB persistence on add.
         // (thingRegistry.add() delegates to "a" provider but is asynchronous and
-        //  can lose the Thing if the bundle restarts before flush; this was the
-        //  bug behind PINs disappearing after bundle:update.)
+        // can lose the Thing if the bundle restarts before flush; this was the
+        // bug behind PINs disappearing after bundle:update.)
         managedThingProvider.add(pin);
         LOGGER.info("Added PIN Thing {} (label='{}', hash stored as property)", thingUid, label);
         return thingUid.getAsString();
@@ -280,8 +277,7 @@ public class PinStore {
         Instant createdParsed = parseInstant(t.getProperties().get(AlarmPanelBindingConstants.PROP_PIN_CREATED),
                 Instant.EPOCH);
         Instant created = createdParsed != null ? createdParsed : Instant.EPOCH;
-        Instant lastUsed = parseInstant(t.getProperties().get(AlarmPanelBindingConstants.PROP_PIN_LAST_USED),
-                null);
+        Instant lastUsed = parseInstant(t.getProperties().get(AlarmPanelBindingConstants.PROP_PIN_LAST_USED), null);
         boolean disabled = isDisabled(t);
         return new PinRecord(id, label, hash, created, lastUsed, disabled);
     }

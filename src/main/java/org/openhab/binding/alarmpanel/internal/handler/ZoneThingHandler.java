@@ -19,7 +19,6 @@ import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -99,8 +98,7 @@ public class ZoneThingHandler extends BaseThingHandler {
     public void initialize() {
         loadConfig();
         if (inputs.isEmpty()) {
-            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
-                    "no input items configured");
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR, "no input items configured");
             return;
         }
         AlarmPanelBridgeHandler bridge = getBridgeHandler();
@@ -109,7 +107,8 @@ public class ZoneThingHandler extends BaseThingHandler {
             return;
         }
         bridge.registerZone(this);
-        LOGGER.info("zone {} initialized: inputs={} behavior={} armModes={} sustained={}s window={} suppressWhenItemsOn={}",
+        LOGGER.info(
+                "zone {} initialized: inputs={} behavior={} armModes={} sustained={}s window={} suppressWhenItemsOn={}",
                 thing.getUID(), inputs, behavior, armModes, requireSustainedSeconds, suppression, suppressWhenItemsOn);
         // Seed initial violating state from current item values.
         for (String name : inputs) {
@@ -249,9 +248,10 @@ public class ZoneThingHandler extends BaseThingHandler {
 
         String reason = suppressionReason(bridge);
         if (reason != null) {
-            bridge.getAuditLogger().log(new org.openhab.binding.alarmpanel.internal.audit.AuditEvent(
-                    org.openhab.binding.alarmpanel.internal.audit.AuditEventType.ZONE_SUPPRESSED)
-                    .set("zone", getThingUid()).set("input", itemName).set("reason", reason));
+            bridge.getAuditLogger()
+                    .log(new org.openhab.binding.alarmpanel.internal.audit.AuditEvent(
+                            org.openhab.binding.alarmpanel.internal.audit.AuditEventType.ZONE_SUPPRESSED)
+                            .set("zone", getThingUid()).set("input", itemName).set("reason", reason));
             publishZoneState();
             return;
         }
@@ -276,10 +276,11 @@ public class ZoneThingHandler extends BaseThingHandler {
             }
             String r = suppressionReason(bridge);
             if (r != null) {
-                bridge.getAuditLogger().log(new org.openhab.binding.alarmpanel.internal.audit.AuditEvent(
-                        org.openhab.binding.alarmpanel.internal.audit.AuditEventType.ZONE_SUPPRESSED)
-                        .set("zone", getThingUid()).set("input", itemName).set("reason", r)
-                        .set("after", "sustained"));
+                bridge.getAuditLogger()
+                        .log(new org.openhab.binding.alarmpanel.internal.audit.AuditEvent(
+                                org.openhab.binding.alarmpanel.internal.audit.AuditEventType.ZONE_SUPPRESSED)
+                                .set("zone", getThingUid()).set("input", itemName).set("reason", r)
+                                .set("after", "sustained"));
                 return;
             }
             bridge.onZoneViolation(this, itemName);
@@ -355,7 +356,6 @@ public class ZoneThingHandler extends BaseThingHandler {
         }
         return null;
     }
-
 
     public boolean isCurrentlyViolating() {
         return !violatingNow.isEmpty();

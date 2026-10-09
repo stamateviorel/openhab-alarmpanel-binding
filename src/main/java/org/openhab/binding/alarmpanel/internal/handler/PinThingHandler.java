@@ -36,19 +36,22 @@ import org.slf4j.LoggerFactory;
  * panel bridge, so MainUI's Settings → Things page lists them natively (no
  * custom widget required).
  *
- * <p>Lifecycle of {@code pinCode}:
+ * <p>
+ * Lifecycle of {@code pinCode}:
  * <ol>
- *   <li>User types a PIN into the config field and saves.</li>
- *   <li>{@link #initialize()} sees a non-empty {@code pinCode}, hashes it
- *       with PBKDF2-SHA256, stores the hash as a Thing property, and clears
- *       {@code pinCode} from config so the plaintext never persists.</li>
- *   <li>{@code pinSet} property toggles to {@code yes}; status goes ONLINE.</li>
+ * <li>User types a PIN into the config field and saves.</li>
+ * <li>{@link #initialize()} sees a non-empty {@code pinCode}, hashes it
+ * with PBKDF2-SHA256, stores the hash as a Thing property, and clears
+ * {@code pinCode} from config so the plaintext never persists.</li>
+ * <li>{@code pinSet} property toggles to {@code yes}; status goes ONLINE.</li>
  * </ol>
  *
- * <p>If the Thing is created without a PIN, it goes OFFLINE with a CONFIG_PENDING
+ * <p>
+ * If the Thing is created without a PIN, it goes OFFLINE with a CONFIG_PENDING
  * status until a PIN is supplied.
  *
- * <p>Verification is performed by the bridge's {@code PinStore}, which uses
+ * <p>
+ * Verification is performed by the bridge's {@code PinStore}, which uses
  * the property {@code hash} on every PIN Thing. This handler exposes
  * {@link #recordUsage()} so the bridge can stamp {@code lastUsed} after a
  * successful verify.
@@ -75,8 +78,7 @@ public class PinThingHandler extends BaseThingHandler {
         String pinCode = stringConfig(cfg, AlarmPanelBindingConstants.CFG_PIN_CODE, "");
 
         if (label.isBlank()) {
-            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
-                    "label is required");
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR, "label is required");
             return;
         }
         if (LABEL_DIGIT_LEAK.matcher(label).find()) {
@@ -90,8 +92,7 @@ public class PinThingHandler extends BaseThingHandler {
         if (!pinCode.isBlank()) {
             // User supplied a new PIN — hash and clear.
             if (!pinCode.matches("\\d{4,8}")) {
-                updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
-                        "PIN must be 4-8 digits");
+                updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR, "PIN must be 4-8 digits");
                 return;
             }
             char[] chars = pinCode.toCharArray();

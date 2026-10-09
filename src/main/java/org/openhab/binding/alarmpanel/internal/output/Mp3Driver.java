@@ -58,8 +58,7 @@ public class Mp3Driver implements OutputDriver {
     private @Nullable ScheduledFuture<?> loopJob;
     private @Nullable ScheduledFuture<?> testJob;
 
-    public Mp3Driver(OutputDriverContext ctx, String sinkId, String audioUrl, int volume0to100,
-            int reassertSeconds) {
+    public Mp3Driver(OutputDriverContext ctx, String sinkId, String audioUrl, int volume0to100, int reassertSeconds) {
         this.ctx = ctx;
         this.sinkId = sinkId;
         this.audioUrl = audioUrl;

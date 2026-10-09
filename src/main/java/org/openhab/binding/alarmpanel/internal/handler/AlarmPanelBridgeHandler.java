@@ -20,10 +20,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Hashtable;
 import java.util.HashSet;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -37,9 +36,9 @@ import org.openhab.binding.alarmpanel.internal.AlarmPanelBindingConstants;
 import org.openhab.binding.alarmpanel.internal.audit.AuditEvent;
 import org.openhab.binding.alarmpanel.internal.audit.AuditEventType;
 import org.openhab.binding.alarmpanel.internal.audit.AuditLogger;
+import org.openhab.binding.alarmpanel.internal.pin.Pbkdf2PinHasher;
 import org.openhab.binding.alarmpanel.internal.pin.PinRecord;
 import org.openhab.binding.alarmpanel.internal.pin.PinStore;
-import org.openhab.binding.alarmpanel.internal.pin.Pbkdf2PinHasher;
 import org.openhab.binding.alarmpanel.internal.pin.RateLimiter;
 import org.openhab.binding.alarmpanel.internal.state.ArmMode;
 import org.openhab.binding.alarmpanel.internal.state.PanelState;
@@ -219,8 +218,7 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
         }
 
         if (ps.isEmpty()) {
-            LOGGER.warn(
-                    "alarmpanel: no PINs configured. Add one via Karaf: openhab:alarmpanel pin add <label>");
+            LOGGER.warn("alarmpanel: no PINs configured. Add one via Karaf: openhab:alarmpanel pin add <label>");
         }
 
         audit.log(new AuditEvent(AuditEventType.RESTORE).set("state", machine.getState().name()));
@@ -299,8 +297,8 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
                 }
             }
             if (migrated > 0) {
-                Path archive = pinFile.resolveSibling("pins.json.migrated-"
-                        + java.time.Instant.now().toString().replace(':', '-'));
+                Path archive = pinFile
+                        .resolveSibling("pins.json.migrated-" + java.time.Instant.now().toString().replace(':', '-'));
                 Files.move(pinFile, archive);
                 LOGGER.info("Migrated {} PIN(s) from {} to child Things (skipped {}); legacy file moved to {}",
                         migrated, pinFile, skipped, archive);
@@ -472,8 +470,8 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
             // for another triggerDuration round (intruder still moving).
             if (outputsSilenced) {
                 outputsSilenced = false;
-                audit.log(new AuditEvent(AuditEventType.TRIGGER).set("retrigger", true)
-                        .set("zone", zone.getThingUid()).set("input", inputItem));
+                audit.log(new AuditEvent(AuditEventType.TRIGGER).set("retrigger", true).set("zone", zone.getThingUid())
+                        .set("input", inputItem));
                 engageAllOutputs();
                 scheduleTriggerSafety();
                 scheduleReminder();
@@ -528,8 +526,8 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
             reminderJob = null;
         }
         releaseAllOutputs();
-        audit.log(new AuditEvent(AuditEventType.DISARM).set("from", t.from.name()).set("source", source)
-                .set("detail", detail));
+        audit.log(new AuditEvent(AuditEventType.DISARM).set("from", t.from.name()).set("source", source).set("detail",
+                detail));
         afterTransition(t);
     }
 
@@ -603,8 +601,8 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
                 requestDisarm("pin:" + rec.label, null);
             } else {
                 boolean locked = rl.recordFailure();
-                audit.log(new AuditEvent(AuditEventType.PIN_WRONG).set("attempts", rl.getFailedCount())
-                        .set("locked", locked));
+                audit.log(new AuditEvent(AuditEventType.PIN_WRONG).set("attempts", rl.getFailedCount()).set("locked",
+                        locked));
             }
             // Wipe the StringType-derived PIN value from the channel — write the
             // empty string back so it doesn't persist as a state.
@@ -624,8 +622,8 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
         }
         Instant endsAt = Instant.now().plusSeconds(exitDelaySec);
         machine.setCountdownEndsAt(endsAt);
-        audit.log(new AuditEvent(AuditEventType.ARM).set("mode", mode.name()).set("source", source)
-                .set("exitDelay", exitDelaySec));
+        audit.log(new AuditEvent(AuditEventType.ARM).set("mode", mode.name()).set("source", source).set("exitDelay",
+                exitDelaySec));
         afterTransition(t);
         scheduleCountdownTick();
     }
@@ -714,8 +712,8 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
             try {
                 o.engageDriver();
             } catch (RuntimeException e) {
-                audit.log(new AuditEvent(AuditEventType.OUTPUT_ERROR).set("output", o.getThingUid())
-                        .set("error", e.getMessage()));
+                audit.log(new AuditEvent(AuditEventType.OUTPUT_ERROR).set("output", o.getThingUid()).set("error",
+                        e.getMessage()));
             }
         }
     }
@@ -725,8 +723,8 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
             try {
                 o.releaseDriver();
             } catch (RuntimeException e) {
-                audit.log(new AuditEvent(AuditEventType.OUTPUT_ERROR).set("output", o.getThingUid())
-                        .set("error", e.getMessage()));
+                audit.log(new AuditEvent(AuditEventType.OUTPUT_ERROR).set("output", o.getThingUid()).set("error",
+                        e.getMessage()));
             }
         }
     }
@@ -760,12 +758,12 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
 
     // Auto-arm scheduling intentionally not implemented here.
     // The site's auto-arm policy lives in alarmpanel_auto_arm.js because:
-    //   - It needs 30-min idle history (via influxdb.persistence), which the
-    //     binding's per-tick "is anything currently violating?" check can't
-    //     answer (motion sensors flip fast; the tick can land in a "quiet"
-    //     microsecond between flips and false-arm).
-    //   - It needs to respect zone suppressWhenItemsOn (e.g. defer when the
-    //     office airco is running because the motion sensor is blinded).
+    // - It needs 30-min idle history (via influxdb.persistence), which the
+    // binding's per-tick "is anything currently violating?" check can't
+    // answer (motion sensors flip fast; the tick can land in a "quiet"
+    // microsecond between flips and false-arm).
+    // - It needs to respect zone suppressWhenItemsOn (e.g. defer when the
+    // office airco is running because the motion sensor is blinded).
     // Keeping a single source of truth for the policy avoids dual auto-arm.
 
     private void afterTransition(Transition t) {
@@ -782,8 +780,8 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
         // sourced transition -- including ARMED_AWAY -> ENTRY_DELAY, the one row that names the
         // zone that started a countdown -- out of the file. Five months of audit history could
         // not explain a single false alarm because of this.
-        audit.log(new AuditEvent(AuditEventType.STATE).set("from", t.from.name()).set("to", t.to.name())
-                .set("source", t.source));
+        audit.log(new AuditEvent(AuditEventType.STATE).set("from", t.from.name()).set("to", t.to.name()).set("source",
+                t.source));
     }
 
     private void persistTransition() {
@@ -882,8 +880,8 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
             if (event.getType() == AuditEventType.DISARM) {
                 String src = event.getFields().getOrDefault("source", "");
                 props.put("last_disarm_source", maskDigitsForDisplay(src));
-                props.put("last_disarm_time", java.time.LocalDateTime.now()
-                        .truncatedTo(java.time.temporal.ChronoUnit.SECONDS).toString());
+                props.put("last_disarm_time",
+                        java.time.LocalDateTime.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS).toString());
             }
             updateProperties(props);
         } catch (RuntimeException e) {
@@ -892,8 +890,7 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
     }
 
     private static String summarizeAudit(AuditEvent event) {
-        String localTime = java.time.LocalTime.now()
-                .truncatedTo(java.time.temporal.ChronoUnit.SECONDS).toString();
+        String localTime = java.time.LocalTime.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS).toString();
         StringBuilder sb = new StringBuilder(localTime).append("  ").append(event.getType().name());
         for (java.util.Map.Entry<String, String> e : event.getFields().entrySet()) {
             sb.append(' ').append(e.getKey()).append('=').append(maskDigitsForDisplay(e.getValue()));

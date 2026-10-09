@@ -123,8 +123,7 @@ public class AlarmPanelConsoleCommandExtension extends AbstractConsoleCommandExt
         // Read the audit log path from the bridge's actual config, not a
         // hardcoded constant — supports any user-overridden path.
         Object cfg = bridge.getThing().getConfiguration().get("auditLogPath");
-        String pathStr = cfg instanceof String && !((String) cfg).isBlank()
-                ? (String) cfg
+        String pathStr = cfg instanceof String && !((String) cfg).isBlank() ? (String) cfg
                 : "/var/log/openhab/alarm-audit.log";
         java.nio.file.Path log = java.nio.file.Paths.get(pathStr);
         if (!java.nio.file.Files.exists(log)) {

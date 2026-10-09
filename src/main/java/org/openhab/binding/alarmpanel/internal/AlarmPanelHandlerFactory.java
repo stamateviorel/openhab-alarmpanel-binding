@@ -52,8 +52,7 @@ public class AlarmPanelHandlerFactory extends BaseThingHandlerFactory {
 
     @Activate
     public AlarmPanelHandlerFactory(final @Reference EventPublisher eventPublisher,
-            final @Reference ItemRegistry itemRegistry,
-            final @Reference ThingRegistry thingRegistry,
+            final @Reference ItemRegistry itemRegistry, final @Reference ThingRegistry thingRegistry,
             final @Reference ManagedThingProvider managedThingProvider) {
         this.eventPublisher = eventPublisher;
         this.itemRegistry = itemRegistry;
