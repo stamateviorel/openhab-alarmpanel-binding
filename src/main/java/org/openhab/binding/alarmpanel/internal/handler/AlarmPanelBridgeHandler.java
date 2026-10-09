@@ -52,6 +52,8 @@ import org.openhab.core.items.ItemRegistry;
 import org.openhab.core.library.types.DateTimeType;
 import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.StringType;
+import org.openhab.core.storage.Storage;
+import org.openhab.core.storage.StorageService;
 import org.openhab.core.thing.Bridge;
 import org.openhab.core.thing.ChannelUID;
 import org.openhab.core.thing.ManagedThingProvider;
@@ -84,6 +86,11 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
     private final EventPublisher eventPublisher;
     private final ItemRegistry itemRegistry;
     private final @Nullable AudioManager audioManager;
+    // Thing *properties* are rebuilt from the DSL on every .things reload, so the armed state
+    // written there never survived one: the panel came back UNKNOWN -- i.e. unarmed -- after any
+    // config edit or restart, until the auto-arm rule happened to notice a minute later.
+    // Storage is keyed by Thing UID and outlives both.
+    private final Storage<String> storage;
 
     // Owned state
     private final StateMachine machine = new StateMachine();
@@ -134,14 +141,15 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
     private final ManagedThingProvider managedThingProvider;
 
     public AlarmPanelBridgeHandler(Bridge bridge, EventPublisher eventPublisher, ItemRegistry itemRegistry,
-            ThingRegistry thingRegistry, ManagedThingProvider managedThingProvider,
-            @Nullable AudioManager audioManager) {
+            ThingRegistry thingRegistry, ManagedThingProvider managedThingProvider, @Nullable AudioManager audioManager,
+            StorageService storageService) {
         super(bridge);
         this.eventPublisher = eventPublisher;
         this.itemRegistry = itemRegistry;
         this.thingRegistry = thingRegistry;
         this.managedThingProvider = managedThingProvider;
         this.audioManager = audioManager;
+        this.storage = storageService.getStorage(AlarmPanelBindingConstants.BINDING_ID, getClass().getClassLoader());
     }
 
     public EventPublisher getEventPublisher() {
@@ -347,11 +355,11 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
     }
 
     private void restoreFromProperties() {
-        String stateStr = getThing().getProperties().get(AlarmPanelBindingConstants.PROP_LAST_STATE);
-        String countdownEndStr = getThing().getProperties().get(AlarmPanelBindingConstants.PROP_COUNTDOWN_ENDS_AT);
-        String armedAtStr = getThing().getProperties().get(AlarmPanelBindingConstants.PROP_ARMED_AT);
-        String lastDisarmStr = getThing().getProperties().get(AlarmPanelBindingConstants.PROP_LAST_DISARM_AT);
-        String lastDisarmSrc = getThing().getProperties().get(AlarmPanelBindingConstants.PROP_LAST_DISARM_SOURCE);
+        String stateStr = restored(AlarmPanelBindingConstants.PROP_LAST_STATE);
+        String countdownEndStr = restored(AlarmPanelBindingConstants.PROP_COUNTDOWN_ENDS_AT);
+        String armedAtStr = restored(AlarmPanelBindingConstants.PROP_ARMED_AT);
+        String lastDisarmStr = restored(AlarmPanelBindingConstants.PROP_LAST_DISARM_AT);
+        String lastDisarmSrc = restored(AlarmPanelBindingConstants.PROP_LAST_DISARM_SOURCE);
 
         PanelState restored = stateStr != null ? PanelState.parseOrDefault(stateStr, PanelState.UNKNOWN)
                 : PanelState.UNKNOWN;
@@ -646,7 +654,10 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
     private void scheduleCountdownTick() {
         synchronized (timerLock) {
             cancel(countdownJob);
-            countdownJob = scheduler.scheduleAtFixedRate(this::countdownTick, 1, 1, TimeUnit.SECONDS);
+            // Fixed delay, not fixed rate: countdownTick() derives the remaining time from the
+            // absolute countdownEndsAt, so tick drift cannot lengthen a delay, and fixed delay
+            // avoids the catch-up burst of ticks that a fixed rate fires after a GC pause.
+            countdownJob = scheduler.scheduleWithFixedDelay(this::countdownTick, 1, 1, TimeUnit.SECONDS);
         }
         // Publish initial countdown value immediately
         publishCountdownToChannel();
@@ -748,7 +759,7 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
             if (reminderIntervalSec <= 0) {
                 return;
             }
-            reminderJob = scheduler.scheduleAtFixedRate(() -> {
+            reminderJob = scheduler.scheduleWithFixedDelay(() -> {
                 if (machine.getState() == PanelState.TRIGGERED) {
                     audit.log(new AuditEvent(AuditEventType.TRIGGER).set("reminder", true));
                 }
@@ -785,14 +796,49 @@ public class AlarmPanelBridgeHandler extends BaseBridgeHandler {
     }
 
     private void persistTransition() {
-        updateProperty(AlarmPanelBindingConstants.PROP_LAST_STATE, machine.getState().name());
         Instant cnd = machine.getCountdownEndsAt();
-        updateProperty(AlarmPanelBindingConstants.PROP_COUNTDOWN_ENDS_AT, cnd != null ? cnd.toString() : null);
         Instant armedAt = machine.getArmedAt();
-        updateProperty(AlarmPanelBindingConstants.PROP_ARMED_AT, armedAt != null ? armedAt.toString() : null);
         Instant disarmAt = machine.getLastDisarmAt();
+        // Properties stay for the Things UI; storage is what is actually read back on init.
+        updateProperty(AlarmPanelBindingConstants.PROP_LAST_STATE, machine.getState().name());
+        updateProperty(AlarmPanelBindingConstants.PROP_COUNTDOWN_ENDS_AT, cnd != null ? cnd.toString() : null);
+        updateProperty(AlarmPanelBindingConstants.PROP_ARMED_AT, armedAt != null ? armedAt.toString() : null);
         updateProperty(AlarmPanelBindingConstants.PROP_LAST_DISARM_AT, disarmAt != null ? disarmAt.toString() : null);
         updateProperty(AlarmPanelBindingConstants.PROP_LAST_DISARM_SOURCE, machine.getLastDisarmSource());
+        store(AlarmPanelBindingConstants.PROP_LAST_STATE, machine.getState().name());
+        store(AlarmPanelBindingConstants.PROP_COUNTDOWN_ENDS_AT, cnd != null ? cnd.toString() : null);
+        store(AlarmPanelBindingConstants.PROP_ARMED_AT, armedAt != null ? armedAt.toString() : null);
+        store(AlarmPanelBindingConstants.PROP_LAST_DISARM_AT, disarmAt != null ? disarmAt.toString() : null);
+        store(AlarmPanelBindingConstants.PROP_LAST_DISARM_SOURCE, machine.getLastDisarmSource());
+    }
+
+    private String storageKey(String key) {
+        return getThing().getUID().getAsString() + "#" + key;
+    }
+
+    private void store(String key, @Nullable String value) {
+        try {
+            if (value == null) {
+                storage.remove(storageKey(key));
+            } else {
+                storage.put(storageKey(key), value);
+            }
+        } catch (RuntimeException e) {
+            LOGGER.warn("alarmpanel: could not persist {}: {}", key, e.getMessage());
+        }
+    }
+
+    /** Storage first, then the Thing property so state written by an older build still migrates. */
+    private @Nullable String restored(String key) {
+        try {
+            String v = storage.get(storageKey(key));
+            if (v != null && !v.isEmpty()) {
+                return v;
+            }
+        } catch (RuntimeException e) {
+            LOGGER.warn("alarmpanel: could not read {} from storage: {}", key, e.getMessage());
+        }
+        return getThing().getProperties().get(key);
     }
 
     private void publishStateToChannels() {
